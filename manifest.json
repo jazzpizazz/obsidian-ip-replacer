@@ -1,0 +1,9 @@
+{
+  "id": "ip-replacer",
+  "name": "IP Replacer",
+  "version": "1.0.0",
+  "description": "Replaces a configurable placeholder in your notes with a configureable IP (in memory only, no file changes).",
+  "author": "jazzpizazz",
+  "authorUrl": "https://github.com/jazzpizazz",
+  "isDesktopOnly": false
+}
