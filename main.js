@@ -2,8 +2,6 @@ const { PluginSettingTab, Plugin, Setting, Notice, MarkdownView } = require('obs
 const { networkInterfaces } = require('os');
 
 class IPReplacerPlugin extends Plugin {
-  networkInterfaces = {};
-
   async onload() {
     console.log('IP Replacer Loaded');
 
@@ -11,11 +9,14 @@ class IPReplacerPlugin extends Plugin {
 
     this.refreshInterfaces();
     this.addSettingTab(new IPReplacerSettingTab(this.app, this));
-    this.registerMarkdownPostProcessor((element, context) => {
-      const replaceRegexp = new RegExp(this.placeholder, 'g');
-      const resolvedIP = this.resolveReplacementIP();
-      element.querySelectorAll('*').forEach(el => {
-        el.innerHTML = el.innerHTML.replace(replaceRegexp, resolvedIP);
+
+    this.registerMarkdownPostProcessor((element) => {
+      this.settings.replacements.forEach(({ placeholder, replacement }) => {
+        const replaceRegexp = new RegExp(placeholder, 'g');
+        const resolvedIP = this.resolveReplacementIP(replacement);
+        element.querySelectorAll('*').forEach(el => {
+          el.innerHTML = el.innerHTML.replace(replaceRegexp, resolvedIP);
+        });
       });
     });
   }
@@ -26,8 +27,8 @@ class IPReplacerPlugin extends Plugin {
     new Notice('IP Replacer: Network interfaces refreshed');
   }
 
-  resolveReplacementIP() {
-    const networkInterface = this.networkInterfaces[this.replacement];
+  resolveReplacementIP(replacement) {
+    const networkInterface = this.networkInterfaces[replacement];
     if (networkInterface) {
       const ipV4Info = networkInterface.find(info => info.family === 'IPv4');
       if (ipV4Info) {
@@ -37,19 +38,18 @@ class IPReplacerPlugin extends Plugin {
       if (ipV6Info) {
         return ipV6Info.address;
       }
-
     }
-    return this.replacement;
+    return replacement;
   }
 
-  setReplacement(newReplacement) {
-    this.replacement = newReplacement;
-    this.saveSettings();
+  async loadSettings() {
+    const data = await this.loadData();
+    this.settings = data?.settings ?? { replacements: [{ placeholder: 'ATTACKER_IP', replacement: 'lo' }] };
   }
 
-  setPlaceholder(newPlaceholder) {
-    this.placeholder = newPlaceholder;
-    this.saveSettings();
+  async saveSettings() {
+    await this.saveData({ settings: this.settings });
+    this.refreshPreview();
   }
 
   refreshPreview() {
@@ -59,24 +59,6 @@ class IPReplacerPlugin extends Plugin {
         view.previewMode.rerender(true);
       }
     });
-  }
-
-  async loadSettings() {
-    const data = await this.loadData();
-    this.placeholder = data?.placeholder ?? 'ATTACKER_IP';
-    this.replacement = data?.replacement ?? 'lo';
-  }
-
-  async saveSettings() {
-    await this.saveData({
-      placeholder: this.placeholder,
-      replacement: this.replacement,
-    });
-    this.refreshPreview();
-  }
-
-  onunload() {
-    console.log('IP Replacer Unloaded');
   }
 }
 
@@ -88,40 +70,83 @@ class IPReplacerSettingTab extends PluginSettingTab {
 
   display() {
     const { containerEl } = this;
+    const plugin = this.plugin;
 
     containerEl.empty();
     containerEl.createEl('h2', { text: 'IP Replacer Settings' });
- 
-    new Setting(containerEl)
-      .setName('Placeholder')
-      .setDesc('The IP or placeholder to be replaced.')
-      .addText(text => text
-        .setPlaceholder('Enter a string or regexp')
-        .setValue(this.plugin.placeholder)
-        .onChange(async (value) => {
-          this.plugin.setPlaceholder(value);
-        }));
+
+    const helperText = containerEl.createEl('p', {
+      text: 'Add or modify placeholders and their corresponding replacements. You can use regular expressions for placeholders.'
+    })
+    helperText.style.color = 'var(--text-muted)';
+    helperText.style.fontSize = '12px';
+
+    plugin.settings.replacements.forEach((pair, index) => {
+      const settingDiv = containerEl.createDiv();
+
+      new Setting(settingDiv)
+        .setName(`Placeholder ${index + 1}`)
+        .setDesc('The placeholder to be replaced.')
+        .addText(text => text
+          .setPlaceholder('Enter a string or regexp')
+          .setValue(pair.placeholder)
+          .onChange(async (value) => {
+            plugin.settings.replacements[index].placeholder = value;
+            await plugin.saveSettings();
+          }));
+
+      new Setting(settingDiv)
+        .setName(`Replacement ${index + 1}`)
+        .setDesc('Will replace the placeholder. Can be an interface (tun0) or an ip.')
+        .addText(text => text
+          .setPlaceholder('Enter IP address or interface')
+          .setValue(pair.replacement)
+          .onChange(async (value) => {
+            plugin.settings.replacements[index].replacement = value;
+            await plugin.saveSettings();
+          }));
+
+      new Setting(settingDiv)
+        .addButton(button => {
+          button.setButtonText('Remove')
+            .setCta()
+            .onClick(async () => {
+              plugin.settings.replacements.splice(index, 1);
+              await plugin.saveSettings();
+              this.display();
+            });
+          button.buttonEl.style.backgroundColor = 'red';
+          button.buttonEl.style.color = 'white';
+          button.buttonEl.style.cursor = 'pointer';
+        });
+    });
 
     new Setting(containerEl)
-      .setName('Replacement')
-      .setDesc('Will replace the placeholder. Can be an interface (tun0) or an ip.')
-      .addText(text => text
-        .setPlaceholder('Enter IP address')
-        .setValue(this.plugin.replacement)
-        .onChange(async (value) => {
-          this.plugin.setReplacement(value);
-        }));
-
-    new Setting(containerEl)
-      .setName('Refresh Interfaces')
-      .setDesc('Reload the available network interfaces. Should be used when the interface did not yet exist when obsidian started.')
+      .setName("Add New Replacement")
+      .setDesc('Add a new placeholder replacement pair.')
       .addButton(button => {
-        button.setButtonText('Refresh')
+        button.setButtonText('Add')
           .setCta()
-          .onClick(() => {
-            this.plugin.refreshInterfaces();
+          .onClick(async () => {
+            plugin.settings.replacements.push({ placeholder: '', replacement: '' });
+            await plugin.saveSettings();
+            this.display();
           });
+        button.buttonEl.style.cursor = 'pointer';
       });
+
+    new Setting(containerEl)
+    .setName('Refresh Interfaces')
+    .setDesc('Reload the available network interfaces. Should be used when the interface did not yet exist when obsidian started.')
+    .addButton(button => {
+      button.setButtonText('Refresh')
+        .setCta()
+        .onClick(() => {
+          this.plugin.refreshInterfaces();
+        });
+        button.buttonEl.style.cursor = 'pointer';
+    });
+  
   }
 }
 
