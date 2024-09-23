@@ -1,8 +1,8 @@
 {
   "id": "ip-replacer",
   "name": "IP Replacer",
-  "version": "1.0.0",
-  "description": "Replaces a configurable placeholder in your notes with a configureable IP (in memory only, no file changes).",
+  "version": "1.0.1",
+  "description": "Replaces any ATTACKER_IP in the notes with a user-defined IP (in memory only, no file changes).",
   "author": "jazzpizazz",
   "authorUrl": "https://github.com/jazzpizazz",
   "isDesktopOnly": false
