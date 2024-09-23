@@ -15,4 +15,3 @@ in that case use `Refresh Interfaces` to make the plugin recheck your interfaces
 ![image](https://github.com/user-attachments/assets/62ea5fda-58e5-4518-a191-fa530fd71a07)
 ### Notes
 - Currently requires you to reopen a note after changing the settings, should be fixed
-- Not sure if the settings are persistent yet, if not this will also be fixed
