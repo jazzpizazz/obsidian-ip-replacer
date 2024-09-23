@@ -1,4 +1,4 @@
-const { PluginSettingTab, Plugin, Setting, Notice } = require('obsidian');
+const { PluginSettingTab, Plugin, Setting, Notice, MarkdownView } = require('obsidian');
 const { networkInterfaces } = require('os');
 
 class IPReplacerPlugin extends Plugin {
@@ -22,7 +22,7 @@ class IPReplacerPlugin extends Plugin {
 
   refreshInterfaces() {
     this.networkInterfaces = networkInterfaces();
-    console.log(Object.keys(this.networkInterfaces));
+    this.refreshPreview();
     new Notice('IP Replacer: Network interfaces refreshed');
   }
 
@@ -52,6 +52,15 @@ class IPReplacerPlugin extends Plugin {
     this.saveSettings();
   }
 
+  refreshPreview() {
+    this.app.workspace.getLeavesOfType("markdown").forEach(leaf => {
+      const view = leaf.view;
+      if (view instanceof MarkdownView) {
+        view.previewMode.rerender(true);
+      }
+    });
+  }
+
   async loadSettings() {
     const data = await this.loadData();
     this.placeholder = data?.placeholder ?? 'ATTACKER_IP';
@@ -63,6 +72,7 @@ class IPReplacerPlugin extends Plugin {
       placeholder: this.placeholder,
       replacement: this.replacement,
     });
+    this.refreshPreview();
   }
 
   onunload() {
