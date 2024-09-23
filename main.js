@@ -2,12 +2,13 @@ const { PluginSettingTab, Plugin, Setting, Notice } = require('obsidian');
 const { networkInterfaces } = require('os');
 
 class IPReplacerPlugin extends Plugin {
-  replacement = 'lo';
-  placeholder = 'ATTACKER_IP';
   networkInterfaces = {};
 
   async onload() {
     console.log('IP Replacer Loaded');
+
+    await this.loadSettings();
+
     this.refreshInterfaces();
     this.addSettingTab(new IPReplacerSettingTab(this.app, this));
     this.registerMarkdownPostProcessor((element, context) => {
@@ -43,10 +44,25 @@ class IPReplacerPlugin extends Plugin {
 
   setReplacement(newReplacement) {
     this.replacement = newReplacement;
+    this.saveSettings();
   }
 
   setPlaceholder(newPlaceholder) {
     this.placeholder = newPlaceholder;
+    this.saveSettings();
+  }
+
+  async loadSettings() {
+    const data = await this.loadData();
+    this.placeholder = data?.placeholder ?? 'ATTACKER_IP';
+    this.replacement = data?.replacement ?? 'lo';
+  }
+
+  async saveSettings() {
+    await this.saveData({
+      placeholder: this.placeholder,
+      replacement: this.replacement,
+    });
   }
 
   onunload() {
