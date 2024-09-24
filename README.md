@@ -1,8 +1,7 @@
 # IP Replacer
 Obsidian plugin for quickly replacing IPs in notes without editing your files.
 ### Installation
-Haven't tried but I guess you just:
-`git clone git@github.com:jazzpizazz/ip-replacer.git` inside of your `.obsidian/plugins/`.
+Just `git clone git@github.com:jazzpizazz/obsidian-ip-replacer.git` inside of your `.obsidian/plugins/`.
 
 ### Configure
 Just create placeholders and their replacements. A replacement can be an IP, a hostname, or the name of a network interface (for example `tun0`) and the plugin
